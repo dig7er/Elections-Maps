@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Общественная Карта Выборов</title>
+	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+	<script src="http://api-maps.yandex.ru/1.1/index.xml?key=AOBEJU8BAAAAtOQqFQIAxdngM6C9Z6RDsPYeR_3yky-x0kQAAAAAAAAAAACy_1ilxxVL6EOWNkqU8r6ibjyvwA==&modules=pmap" type="text/javascript"></script>
+	<script type="text/javascript">
+		var map, geoResult;
+		
+		function init () {
+			map = new YMaps.Map( document.getElementById("YPeoplesMapHybrid") );
+			zoom = 9;
+			// Получение информации о местоположении пользователя
+			if (YMaps.location && YMaps.location.country == "Россия") {
+				center = new YMaps.GeoPoint(YMaps.location.longitude, YMaps.location.latitude);
+
+				if (YMaps.location.zoom) {
+					zoom = YMaps.location.zoom;
+				}
+
+				map.openBalloon(center, "Место вашего предположительного местоположения:<br/>"
+					+ (YMaps.location.country || "")
+					+ (YMaps.location.region ? ", " + YMaps.location.region : "")
+					+ (YMaps.location.city ? ", " + YMaps.location.city : "")
+				)
+			} else {
+				center = new YMaps.GeoPoint(37.64, 55.76);
+			}
+			map.setCenter(center, zoom, YMaps.MapType.PMAP);
+			map.addControl(new YMaps.TypeControl([YMaps.MapType.PMAP, YMaps.MapType.PHYBRID, YMaps.MapType.SATELLITE]));
+			map.addControl(new YMaps.ToolBar());
+			map.addControl(new YMaps.Zoom());
+			map.addControl(new YMaps.MiniMap(6)); // Работает как обзорная карта
+			
+			// Создание диспетчера объектов и добавление его на карту
+            var objManager = new YMaps.ObjectManager();
+            map.addOverlay(objManager);
+			
+            // Добавление объектов в диспетчер объектов
+            objManager.add(getElectionCommissions(1, "default#bluePoint" ), 1, 8);
+            objManager.add(getElectionCommissions(40, "default#violetPoint" ), 9, 18);
+		};
+		
+		// Функция для отображения результата геокодирования на карте
+		// Параметр value - адрес объекта для поиска
+		function showAddress (value) {
+			// Удаляет результат предыдущего поиска
+			map.removeOverlay(geoResult);
+
+			// Запускает процесс геокодирования
+			var geocoder = new YMaps.Geocoder(value, {results: 1, boundedBy: map.getBounds(), geocodeProvider: "yandex#pmap"});
+
+			// Создает обработчик успешного завершения геокодирования
+			YMaps.Events.observe(geocoder, geocoder.Events.Load, function () {
+				// Если объект найден, добавляет его на карту
+				// и устанавливает центр карты в центр области показа объекта
+				if (this.length()) {
+					geoResult = this.get(0);
+					map.addOverlay(geoResult);
+					map.setBounds(geoResult.getBounds());
+				}else {
+					alert("Ничего не найдено")
+				}
+			});
+
+			// Процесс геокодирования завершен с ошибкой
+			YMaps.Events.observe(geocoder, geocoder.Events.Fault, function (gc, error) {
+				alert("Произошла ошибка: " + error);
+			})
+		}
+		
+		// Функция для генерирования заданного количества меток
+        function getElectionCommissions(count, sKey){
+            var arrPoints = [],
+                bounds = map.getBounds(),
+                pointLb = bounds.getLeftBottom(),
+                span = bounds.getSpan();
+
+            // Метки размещаются случайным образом в области видимости карты
+            for (var i = 0; i < count; i++) {
+                var point = new YMaps.GeoPoint(pointLb.getLng() + span.x * Math.random(),
+                                               pointLb.getLat() + span.y * Math.random());
+				var placemark = new YMaps.Placemark(point, {style:sKey});
+				var observersCount = parseInt(Math.random()*Math.random()*Math.random()*Math.random() * 1000 / count);
+				placemark.setIconContent(observersCount);
+				if (count == 1) {
+					placemark.name = "ТИК Москвы";
+					placemark.description = "город Москва, ул. Строителей, дом 12<p>Всего наблюдателей: "+observersCount+"</p><a href=\"#\" onclick=\"alert('Осуществляется переход на страницу ТИК на интернет-площадке'); return false;\">Подробнее</a>";
+				} else {
+					placemark.name = "УИК №"+parseInt(Math.random()*95000);
+					placemark.description = "город Москва, ул. Строителей, дом "+parseInt(Math.random()*100)+"<p>Наблюдателей: "+observersCount+"</p><a href=\"#\" onclick=\"alert('Осуществляется переход на страницу УИК на интернет-площадке'); return false;\">Подробнее</a>";
+				}
+                arrPoints.push(placemark);
+            }
+            return arrPoints;
+        }
+	</script>
+	<script type="text/javascript">var switchTo5x=true;</script>
+	<script type="text/javascript" src="http://w.sharethis.com/button/buttons.js">
+	</script><script type="text/javascript">stLight.options({publisher:'c96217d9-013a-490d-bd13-6c761ed71d81'});</script>
+	<style type="text/css">
+		body {font-family: Georgia, Arial; font-size: 18pt; background-color: #c5d1d7}
+		.btn {padding: 10px 20px; color: white; font-weight: bold; font-family: Georgia, Arial; font-size: 14pt}
+		#observerBtn {background-color: #bcd0ba;}
+		#searchBtn {background-color: #d16349; padding: 5px 10px; float: right;}
+		.txt {font-family: Georgia, Arial; font-size: 14pt; color: black; background-color: #e8e5e2; border: 1px dashed black;}
+	</style>
+</head>
+
+<body onload="init();">
+	<div style="width: 1004px; margin: 30px auto;">
+		<div style="height: 40px;">
+			<div style="float: left">4 321 наблюдателей</div>
+			<div style="float: right"><button class="btn" id="observerBtn" onclick="alert('Появляется форма, в которой необходимо заполнить свои ФИО, контактные данные и указать номер УИК. Вас учтут.');">Отметиться наблюдателем</button></div>
+		</div>
+		
+		<form action="#" onsubmit="showAddress( this.address.value );return false;">
+			<p valign="middle">
+				<input id="address" style="width:87%;" value="Поиск на карте..." onclick="this.value=''" class="txt" />
+				<input type="submit" value="Поиск" class="btn" id="searchBtn" />
+			</p>
+			
+			<div id="YPeoplesMapHybrid" style="height:480px; width: 100%;"></div>
+		</form>
+		
+		<div style="margin-top: 25px; font-size: 14pt; border: 1px dashed black">
+			<p><small><i>(22.01.2012)</i></small> Данная страница представляет из себя эскиз, первые идеи и самый базовый функционал для разрабатываемого проекта.</p>
+			<p><small><i>(22.01.2012)</i></small> Дизайн вообще не прорабатывался в принципе.</p>
+			<p><small><i>(22.01.2012)</i></small> Все данные о наблюдателях и расположении УИК и ТИК на карте сгенерированы случайным образом!</p>
+			<p><small><i>(22.01.2012)</i></small> Следующие шаги: дизайн страницы, форма добавления наблюдаетей.</p>
+			<p><small><i>(22.01.2012)</i></small> Ждём ваших комментариев и идей по развитию карты на <a href="mailto:dig7er@googlemail.com">dig7er@googlemail.com</a></p>
+			<p><small><i>(21.01.2012)</i></small> Объявляется набор наблюдателей в г. Саранске!</p>
+		</div>
+		<span class='st_sharethis_hcount' displayText='Поделиться в соцсетях'></span>
+		<span class='st_livejournal' ></span>
+		<span class='st_facebook' ></span>
+		<span class='st_twitter' ></span>
+		<span class='st_vkontakte' ></span>
+		<span class='st_email' ></span>
+	</div>
+</body>
+
+</html>

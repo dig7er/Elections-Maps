@@ -1,0 +1,160 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Координаты регионов.</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script src="http://api-maps.yandex.ru/1.1/index.xml?key=AOBEJU8BAAAAtOQqFQIAxdngM6C9Z6RDsPYeR_3yky-x0kQAAAAAAAAAAACy_1ilxxVL6EOWNkqU8r6ibjyvwA==&modules=pmap" type="text/javascript"></script>
+    <script type="text/javascript">
+		/**
+		 * Класс для отображения логов.
+		 */
+		var Log = {
+			/**
+			 * Метод для вывода сообщений об ошибке.
+			 * Выведет сообщение только в том случае, если на странице есть элемент с id 'error'.
+			 */
+			error: function(message) {
+				if (document.getElementById('error') != null)
+					document.getElementById('error').innerHTML += message + "\n";
+			},
+			
+			/**
+			 * Метод для вывода логов.
+			 * Выведет сообщение только в том случае, если на странице есть элемент с id 'message'.
+			 */
+			message: function(message) {
+				if (document.getElementById('message') != null)
+					document.getElementById('message').innerHTML += message + "\n";
+			},
+			
+			clearMessage: function() {
+				if (document.getElementById('message') != null)
+					document.getElementById('message').innerHTML = "";
+			},
+			
+			clearError: function() {
+				if (document.getElementById('error') != null)
+					document.getElementById('error').innerHTML = "";
+			},
+		};
+		
+		var polygon;
+        // Создание обработчика для события window.onLoad
+        YMaps.jQuery(function () {
+            // Создание экземпляра карты и его привязка к созданному контейнеру
+            var map = new YMaps.Map(YMaps.jQuery("#YMapsID")[0]);
+			map.enableScrollZoom();
+			
+			// Создание стиля для многоугольника
+			var style = new YMaps.Style("default#greenPoint");
+			style.polygonStyle = new YMaps.PolygonStyle();
+			style.polygonStyle.fill = 1;
+			style.polygonStyle.outline = 1;
+			style.polygonStyle.strokeWidth = 4;
+			style.polygonStyle.strokeColor = "ffff0088";
+			style.polygonStyle.fillColor = "ff000055";
+			YMaps.Styles.add("polygon#Example", style);
+			
+			YMaps.MapType.PMAP.setName("Схема 1");
+			YMaps.MapType.MAP.setName("Схема 2");
+			YMaps.MapType.PHYBRID.setName("Гибрид 1");
+			YMaps.MapType.HYBRID.setName("Гибрид 2");
+			map.addControl(new YMaps.TypeControl([YMaps.MapType.PMAP, YMaps.MapType.MAP, YMaps.MapType.SATELLITE, YMaps.MapType.PHYBRID, YMaps.MapType.HYBRID,], [0,1,2,3,4])); // объявляем доступные типы карт
+			map.addControl(new YMaps.Zoom());
+			map.addControl(new YMaps.SearchControl());
+			var toolbar = new YMaps.ToolBar();
+            var editBtn = new YMaps.ToolBarButton({ 
+                caption: "Редактировать", 
+                hint: "Добавляет многоугольник на карту"
+            });
+
+            // При щелчке на кнопке добавляется новая кнопка
+            YMaps.Events.observe(editBtn, editBtn.Events.Click, function (button) {
+				if (button.isSelected()) {
+					polygon.stopEditing();
+					button.deselect();
+				} else {
+					if (polygon == null) {
+						// Создание многоугольника и добавление его на карту
+						polygon = new YMaps.Polygon([], {style: "polygon#Example"});
+						map.addOverlay(polygon);
+					}
+					// Включение режима редактирования
+					polygon.startEditing();
+					button.select();
+				}
+            }, map);
+			
+			var saveBtn = new YMaps.ToolBarButton({ 
+                caption: "Сохранить", 
+                hint: "Выдаёт координаты многоугольника."
+            });
+
+            // При щелчке на кнопке добавляется новая кнопка
+            YMaps.Events.observe(saveBtn, saveBtn.Events.Click, function (button) {
+				if (polygon == null || polygon.getNumPoints() < 3) {
+					alert("Внимание! Сохранить невозможно, т.к. регион не был очерчен. Пожалуйста, очертите регион при помощи кнопки 'Редактировать'");
+					return;
+				}
+				polygon.stopEditing();
+				editBtn.deselect();
+				var regionName=prompt('Укажите название региона (например, Кировская область)','Название');
+				if (regionName == null || regionName == "")
+					regionName = "(Без названия)";
+				Log.clearMessage();
+				Log.message("{name:\""+regionName+"\",coordinates:[");
+				var count = 0;
+				var points = polygon.getPoints();
+				var separator = ",";
+				for (var N in points) {
+					if (++count == points.length)
+						separator = "";
+					
+					Log.message("{x:"+points[N].getX()+",y:"+points[N].getY()+"}"+separator);
+				}
+				Log.message("]}");
+				window.location = "#message";
+            }, map);
+			
+			var clearBtn = new YMaps.ToolBarButton({ 
+                caption: "Очистить", 
+                hint: "Удаляет многоугольник"
+            });
+
+            // При щелчке на кнопке добавляется новая кнопка
+            YMaps.Events.observe(clearBtn, clearBtn.Events.Click, function (button) {
+				editBtn.deselect();
+				Log.clearMessage();
+				if (polygon != null) {
+					map.removeOverlay(polygon);
+					polygon = null;
+				}
+            }, map);
+
+            // Добавление кнопки на панель инструментов
+            toolbar.add(editBtn);
+			toolbar.add(saveBtn);
+			toolbar.add(clearBtn);
+
+            // Добавление панели инструментов на карту
+            map.addControl(toolbar);
+
+			// Добавим вершину к многоугольнику при клике на карту в случае 
+			YMaps.Events.observe(map, map.Events.Click, function (map, mEvent) {
+				if (polygon != null && polygon.isEditing())
+					polygon.addPoint(mEvent.getGeoPoint());
+			});
+
+            // Установка для карты ее центра и масштаба
+            map.setCenter(new YMaps.GeoPoint(37.64, 55.76), 5);
+        });
+    </script>
+	<style type="text/css">
+		html, body, #YMapsID {width:100%; margin: 0; padding: 0;}
+	</style>
+</head>
+
+<body>
+    <div id="YMapsID" style="height:600px"></div>
+	<div id="message" style="font-size:14pt; font-family: Lucida Console,sans-serif,Courier New,Arial; margin-top: 30px;"><a name="message"></a></div>
+</body>
+</html>
