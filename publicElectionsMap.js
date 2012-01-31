@@ -179,6 +179,10 @@ var PublicElectionsMap = {
 				placemark.name = commission.title;
 				placemark.description = PublicElectionsMap.buildAddressString(commission.city, commission.address) +
 										' <a href="#" onclick="PublicElectionsMap.showAddress(\''+addressString+'\', true); return false;"><img src="target.png" alt="Цель" title="Найти на карте" style="position: relative; bottom: -3px;" /></a>' +
+										((commission.level != null && commission.level > 0) ?"<p>Уровень: "+commission.level+"</p>":"") +
+										((commission.numVoters != null && commission.numVoters > 0) ?"Избирателей: "+commission.numVoters+"<br/>":"") +
+										((commission.numObservers != null && commission.numObservers > 0) ?"Наблюдателей: "+commission.numObservers+"<br/>":"") +
+										((commission.numLinks != null && commission.numLinks > 0) ?"Ссылок: "+commission.numLinks+"<br/>":"") +
 										((commission.url != null && commission.url.length > 0) ?"<p>Сайт: <a href=\""+commission.url+"\" target=\"_blank\">"+commission.url+"</a></p>":"");
 				placemark.setIconContent(commission.shortTitle);
 				placemark.id = commission.id;
@@ -343,14 +347,14 @@ var PublicElectionsMap = {
 				objManager.add(
 					PublicElectionsMap.electionCommissionsCollection[num],
 					PublicElectionsMap.MAP_LEVELS[num].value,
-					(num >= PublicElectionsMap.MAP_LEVELS.length-1) ? 19 : (PublicElectionsMap.MAP_LEVELS[num+1].value - 1)
+					19
 				);
 	},
 	
 	/**
 	 * Выводит координаты всех избирательных комиссий в формате JSON: [{id,x,y},{id,x,y},...]
 	 */
-	writeElectionCommisionCoords: function() {
+	writeElectionCommissionCoords: function() {
 		Log.message("[");
 		var placemark;
 		for (var num in PublicElectionsMap.electionCommissionsCollection)
