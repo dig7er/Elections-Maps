@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Проверка адресов на карте</title>
+	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+	<script src="http://api-maps.yandex.ru/1.1/index.xml?key=AOBEJU8BAAAAtOQqFQIAxdngM6C9Z6RDsPYeR_3yky-x0kQAAAAAAAAAAACy_1ilxxVL6EOWNkqU8r6ibjyvwA==&modules=pmap" type="text/javascript"></script>
+	<script type="text/javascript" src="addressCheckMap.js"></script>
+</head>
+
+<body onload="AddressCheckMap.init();">
+	<div>
+		<form action="#" method="GET" onsubmit="return AddressCheckMap.showCoordinates()">
+		Область или область, район:<input type="text" name="region" id="region" value="" size="75" /><br/>
+		Адрес: <input type="text" name="address" id="address" value="" size="75" /> <input type="submit" name="submit" value="Получить координаты" />
+		<div>
+			<input type="radio" name="type" id="all" value="all" checked="checked" />всё
+			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="type" id="house" value="house" />дом
+			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="type" id="street" value="street" />улица
+			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="type" id="district" value="district" />район
+			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="type" id="locality" value="locality" />населённый пункт
+			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="type" id="province" value="province" />область
+		</div>
+		</form>
+	</div>
+	<div id="map" style="height:600px; width: 800px; margin-top: 20px;"></div>
+	<div id="message" style="font-size: 20pt; margin-top: 25px;"></div>
+	<div id="error" style="color: red; font-size: 20pt; margin-top: 25px;"></div>
+</body>
+</html>
