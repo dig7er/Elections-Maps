@@ -33,8 +33,8 @@ var Log = {
 
 /**
  * Класс, объявляющий тип масштабирования.
- * @param {index} название типа масштабирования.
- * @param {value} уровень масштабирования для данного типа.
+ * @param {value} название типа масштабирования.
+ * @param {index} уровень масштабирования для данного типа.
  */
 var ZoomLevelType = function(index, value) {
 	this.index = index;
@@ -82,9 +82,9 @@ var PublicElectionsMap = {
 	 * Переменная, в которой заданы все типы масштабирования для карты.
 	 */
 	MAP_LEVELS: new Array(
-		new ZoomLevelType("ЦИК", 0),
-		new ZoomLevelType("ИКСы", 4),
-		new ZoomLevelType("ТИКи", 10)
+		new ZoomLevelType(0, "ЦИК"),
+		new ZoomLevelType(4, "ИКСы"),
+		new ZoomLevelType(10, "ТИКи")
 	),
 	
 	/**
@@ -398,7 +398,7 @@ var PublicElectionsMap = {
 			if (num < PublicElectionsMap.MAP_LEVELS.length)
 				objManager.add(
 					PublicElectionsMap.electionCommissionsCollection[num],
-					PublicElectionsMap.MAP_LEVELS[num].value,
+					PublicElectionsMap.MAP_LEVELS[num].index,
 					19
 				);
 		
