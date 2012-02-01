@@ -38,10 +38,12 @@
 		};
 		
 		var polygon;
+		var map;
+		
         // Создание обработчика для события window.onLoad
         YMaps.jQuery(function () {
             // Создание экземпляра карты и его привязка к созданному контейнеру
-            var map = new YMaps.Map(YMaps.jQuery("#YMapsID")[0]);
+            map = new YMaps.Map(YMaps.jQuery("#YMapsID")[0]);
 			map.enableScrollZoom();
 			
 			// Создание стиля для многоугольника
@@ -101,7 +103,7 @@
 				if (regionName == null || regionName == "")
 					regionName = "(Без названия)";
 				Log.clearMessage();
-				Log.message("{name:\""+regionName+"\",coordinates:[");
+				Log.message('{"name":"'+regionName+'","coordinates":[');
 				var count = 0;
 				var points = polygon.getPoints();
 				var separator = ",";
@@ -109,7 +111,7 @@
 					if (++count == points.length)
 						separator = "";
 					
-					Log.message("{x:"+points[N].getX()+",y:"+points[N].getY()+"}"+separator);
+					Log.message('{"x":'+points[N].getX()+',"y":'+points[N].getY()+'}'+separator);
 				}
 				Log.message("]}");
 				window.location = "#message";
@@ -128,7 +130,38 @@
 					map.removeOverlay(polygon);
 					polygon = null;
 				}
+				if (RegionCoordinatesMap.regions.length > 0)
+					for (var num in RegionCoordinatesMap.regions)
+						map.removeOverlay( RegionCoordinatesMap.regions[num] );
             }, map);
+			 
+            // Создание кнопки-флажка
+            var button = new YMaps.ToolBarToggleButton({ 
+                icon: "http://api.yandex.ru/i/maps/icon-fullscreen.png", 
+                hint: "Разворачивает карту на весь экран"
+            });
+
+            // Если кнопка активна, то карта разворачивается во весь экран
+            YMaps.Events.observe(button, button.Events.Select, function () {
+                setSize();
+            });
+
+            // Если кнопка неактивна, то карта принимает фиксированный размер
+            YMaps.Events.observe(button, button.Events.Deselect, function () {
+                setSize('100%', 600);
+            });
+
+            // Функция устанавливает новые размеры для карты
+            function setSize (newWidth, newHeight) {
+                YMaps.jQuery("#YMapsID").css({
+                    width: newWidth || "", 
+                    height: newHeight || ""
+                });
+                map.redraw();
+            }
+
+            // Добавление кнопки на панель инструментов
+            toolbar.add(button);
 
             // Добавление кнопки на панель инструментов
             toolbar.add(editBtn);
@@ -147,14 +180,80 @@
             // Установка для карты ее центра и масштаба
             map.setCenter(new YMaps.GeoPoint(37.64, 55.76), 5);
         });
+		
+		var RegionCoordinatesMap = {
+			regions: new Array(),
+			
+			addRegion: function(id) {
+				var regionCode = document.getElementById(id).value;
+				var region = JSON.parse(regionCode);
+				var regions = new Array();
+				
+				if (typeof(region)=='object')
+					if (region instanceof Array)
+						regions = region;
+					else
+						regions.push(region);
+					
+				for (var i in regions)
+					if (regions[i].coordinates != null && regions[i].coordinates.length > 0) {
+						var points = new Array();
+						for (var num in regions[i].coordinates) {
+							var point = new YMaps.GeoPoint(regions[i].coordinates[num].x, regions[i].coordinates[num].y);
+							points.push( point );
+						}
+							
+						var polygon = new YMaps.Polygon(points, {style: "polygon#Example"});
+						polygon.name = region.name;
+						map.addOverlay(polygon);
+						RegionCoordinatesMap.regions.push(polygon);
+					}
+			}
+		};
+		
+		function displayInstruction() {
+			document.getElementById('instruction').style.display='block';
+			document.getElementById('regionForm').style.display='none';
+			return false;
+		};
+		
+		function displayRegionForm() {
+			document.getElementById('instruction').style.display='none';
+			document.getElementById('regionForm').style.display='block';
+			return false;
+		};
     </script>
 	<style type="text/css">
-		html, body, #YMapsID {width:100%; margin: 0; padding: 0;}
+		html, body, #YMapsID {width:100%; height: 100%; margin: 0; padding: 0; font-size: 14pt; font-family: Tahoma, Georgia, Verdana, Arial;}
+		#message, #regionForm, #instruction, .buttons {margin: 5px 10px}
+		#instruction, #regionForm {display: none;}
+		#instruction {font-size: 12pt;}
+		.buttons a {margin: 0px 10px; padding: 10px 20px; background-color: #ddd; font-size: 10pt; border-top: 1px solid #eee; border-right: 1px solid #aaa; border-bottom: 1px solid #aaa; border-left: 1px solid #eee;}
+		.buttons a:hover {background-color: #aaa; font-size: 10pt; border-top: 1px solid #eee; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd; border-left: 1px solid #eee;}
 	</style>
 </head>
 
 <body>
     <div id="YMapsID" style="height:600px"></div>
 	<div id="message" style="font-size:14pt; font-family: Lucida Console,sans-serif,Courier New,Arial; margin-top: 30px;"><a name="message"></a></div>
+	<div align="center" class="buttons">
+		<a href="#" onclick="displayInstruction()">Инструкция</a>
+		<a href="#" onclick="displayRegionForm()">Добавить регион</a>
+	</div>
+	<div id="instruction">
+		<ol>
+			<li>Найти свой регион для очерчивания (при помощи навигации по карте или при помощи поиска по карте)</li>
+			<li>Кликнуть на кнопку "Редактировать". Каждый клик по карте будет добавлять новую точку к многоугольнику на карте</li>
+			<li>Добавить достаточно точек для того, чтобы очертить нужный регион (при необходимости можно выйти из режима редактирования, нажав на кнопку "Редактировать")</li>
+			<li>Для удаления неугодной точки многоугольника достаточно кликнуть по ней левой кнопкой и выбрать в меню опцию "Удалить"</li>
+			<li>По окончании очерчивания кликнуть на кнопку "Сохранить". Уазать название региона, после чего под картой будет выведен интересующий нас код.</li>
+			<li>Скопировать выведенный код под картой и передать его любым способом нам</li>
+		</ol>
+	</div>
+	<div id="regionForm">
+		<h5>Добавление региона:</h5>
+		<textarea id="regioncode" cols="100" rows="5"></textarea>
+		<p><button onclick="RegionCoordinatesMap.addRegion('regioncode')">Добавить</button></p>
+	</div>
 </body>
 </html>

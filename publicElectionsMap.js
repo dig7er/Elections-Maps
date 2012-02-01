@@ -324,7 +324,7 @@ var PublicElectionsMap = {
 		YMaps.Events.observe(button, button.Events.Click, PublicElectionsMap.linksButtonClickHandler, buttons);
 		buttons.push( button );
 		
-		PublicElectionsMap.map.addControl(new YMaps.ToolBar(buttons), new YMaps.ControlPosition(YMaps.ControlPosition.BOTTOM_LEFT, new YMaps.Point(10, 10)));
+		PublicElectionsMap.map.addControl(new YMaps.ToolBar(buttons), new YMaps.ControlPosition(YMaps.ControlPosition.BOTTOM_LEFT, new YMaps.Point(20, 20)));
 	},
 	
 	/**
@@ -443,7 +443,7 @@ var PublicElectionsMap = {
 				if (i > 0)
 					Log.message(",");
 				placemark = PublicElectionsMap.electionCommissionsCollection[num][i];
-				Log.message("{id:"+placemark.id+",x:"+placemark.getCoordPoint().getX()+",y:"+placemark.getCoordPoint().getY()+"}");
+				Log.message('{"id":'+placemark.id+',"x":'+placemark.getCoordPoint().getX()+',"y":'+placemark.getCoordPoint().getY()+'}');
 			}
 		Log.message("]");
 	}
