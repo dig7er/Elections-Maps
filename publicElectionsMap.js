@@ -64,13 +64,19 @@ var ElectionCommission = function(id, level, shortTitle, title, address, city, u
 var PublicElectionsMap = {
 	map: null,
 	
-	geoResult: null,
-	
 	electionCommissionsCollection: null,
 	
 	numActiveGeocoderCalls: 0,
 	
 	buttons: null,
+	
+	electionCommissionLevel: null,
+	
+	visibleElectionCommissions: new Array(),
+	
+	centerNearestElectionCommission: null,
+	
+	distanceToNearestElectionCommission: null,
 	
 	/**
 	 * Переменная, в которой заданы все типы масштабирования для карты.
@@ -83,8 +89,15 @@ var PublicElectionsMap = {
 	
 	/**
 	 * Добавляем Народную Яндекс.Карту на страницу и отмечаем на ней все избирательные комиссии.
+	 * @param {place} название области или района, который показать следует показать по-умолчанию.
+	 * Задать null, чтобы показать пользователю из России его местоположение,
+	 * а для заграничного пользователя показать европейскую часть России.
+	 * @param {electionCommissionLevel} указывает уровень избирательной комиссии, которая должна попасть в масштаб карты по-умолчанию.
 	 */
-	init: function(place) {
+	init: function(place, electionCommissionLevel) {
+		if (electionCommissionLevel != null && electionCommissionLevel != "")
+			PublicElectionsMap.electionCommissionLevel =  electionCommissionLevel;
+	
 		PublicElectionsMap.map = new YMaps.Map( document.getElementById("publicElectionsMap") );
 		PublicElectionsMap.map.setType(YMaps.MapType.PMAP);
 		PublicElectionsMap.map.enableScrollZoom();
@@ -106,9 +119,6 @@ var PublicElectionsMap = {
 		// Показать на карте заданное место
 		PublicElectionsMap.setDefaultViewport(place);
 		
-		// Считаем все избирательные комиссии на карте
-		PublicElectionsMap.markElectionCommissions();
-		
 		PublicElectionsMap.addButtons();
 	},
 	
@@ -117,13 +127,51 @@ var PublicElectionsMap = {
 	 * @param {place} - место, которое будет показано на карте. Если не задано, то будет показана вся Россия
 	 */
 	setDefaultViewport: function(place) {
-		if (place == null || place == "") { // Если место не задано место, то будет показана вся Россия
-			var zoom = 3;
-			var center = new YMaps.GeoPoint(95, 65);
+		// Определяем координаты пользователя и отмечаем на карте
+		if (YMaps.location) {
+			var userLocation = new YMaps.GeoPoint(YMaps.location.longitude, YMaps.location.latitude);
+			// Создание стиля для значка пользователя
+			var s = new YMaps.Style();
+			s.iconStyle = new YMaps.IconStyle();
+			s.iconStyle.href = "user.png";
+			s.iconStyle.size = new YMaps.Point(32, 32);
+			s.iconStyle.offset = new YMaps.Point(-16, -16);
+			// Создание метки и добавление пользователя на карту
+			var usermark = new YMaps.Placemark(userLocation, {style: s, hideIcon: false});
+			usermark.description = "Ваше предположительное местоположение";
+			PublicElectionsMap.map.addOverlay(usermark);
+		}
+		// Показываем заданное место на карте.
+		if (place == null || place == "") { // Если место не задано, то для пользователя из России будет определено его местоположение и показано на карте с максимальным масштабом;
+											// для пользователя из-за рубежа карта будет отцентрована по европейской части России.
+			var zoom = 4;
+			var center = new YMaps.GeoPoint(37.64, 55.76);
+			
+			if (YMaps.location && YMaps.location.country == "Россия") {
+				center = new YMaps.GeoPoint(YMaps.location.longitude, YMaps.location.latitude);
+				zoom = YMaps.location.zoom;
+			}
+			
 			PublicElectionsMap.map.setCenter(center, zoom);
-		} else
-			// если место задано, то оно будет показано на карте
-			PublicElectionsMap.showAddress(place, false);
+			// Считаем все избирательные комиссии на карте
+			PublicElectionsMap.markElectionCommissions();
+		} else {
+			var geocoder = new YMaps.Geocoder(place, {geocodeProvider: "yandex#map"});
+			// Создает обработчик успешного завершения геокодирования
+			YMaps.Events.observe(geocoder, geocoder.Events.Load, function () {
+				// Если объект найден, устанавливает центр карты в центр области показа объекта
+				if (this.length()) {
+					PublicElectionsMap.map.setBounds(this.get(0).getBounds());
+					PublicElectionsMap.markElectionCommissions();
+				} else
+					alert("Ничего не найдено. Извините, пожалуйста!");
+			});
+
+			// Процесс геокодирования завершен с ошибкой
+			YMaps.Events.observe(geocoder, geocoder.Events.Fault, function (gc, error) {
+				alert("Произошла ошибка: " + error);
+			});
+		}
 	},
 	
 	/**
@@ -192,6 +240,8 @@ var PublicElectionsMap = {
 				placemark.numObservers = commission.numObservers;
 				placemark.numLinks = commission.numLinks;
 				PublicElectionsMap.electionCommissionsCollection[commission.level-1].push(placemark);
+				
+				PublicElectionsMap.checkForVisibility( placemark );
 			} else {
 				Log.error("ID "+commission.id+": Адрес '"+addressString+"' не найден.<br/>");
 			}
@@ -234,9 +284,10 @@ var PublicElectionsMap = {
 		// Запускает процесс геокодирования
 		var geocodeProviderValue = peoplesMap ? "yandex#pmap" : "yandex#map";
 		var geocoder = new YMaps.Geocoder(value, {geocodeProvider: geocodeProviderValue});
-
+		PublicElectionsMap.numActiveGeocoderCalls++;
 		// Создает обработчик успешного завершения геокодирования
 		YMaps.Events.observe(geocoder, geocoder.Events.Load, function () {
+			PublicElectionsMap.numActiveGeocoderCalls--;
 			// Если объект найден, устанавливает центр карты в центр области показа объекта
 			if (this.length())
 				PublicElectionsMap.map.setBounds(this.get(0).getBounds());
@@ -246,6 +297,7 @@ var PublicElectionsMap = {
 
 		// Процесс геокодирования завершен с ошибкой
 		YMaps.Events.observe(geocoder, geocoder.Events.Fault, function (gc, error) {
+			PublicElectionsMap.numActiveGeocoderCalls--;
 			alert("Произошла ошибка: " + error);
 		});
 	},
@@ -349,6 +401,35 @@ var PublicElectionsMap = {
 					PublicElectionsMap.MAP_LEVELS[num].value,
 					19
 				);
+		
+		while (PublicElectionsMap.visibleElectionCommissions.length == 0 && PublicElectionsMap.map.getZoom() >= 0) {
+			PublicElectionsMap.map.zoomBy(-1);
+			PublicElectionsMap.checkForVisibility( PublicElectionsMap.centerNearestElectionCommission );
+		}
+	},
+	
+	/**
+	 * @param {placemark} [YMaps.Placemark] метка для проверки на видимость в заданном масштабе карты
+	 */
+	checkForVisibility: function(placemark) {
+		if (PublicElectionsMap.map.getBounds() == null)
+			return;
+			
+		if (PublicElectionsMap.electionCommissionLevel == null ||
+			PublicElectionsMap.electionCommissionLevel == placemark.level) {
+				// Проверить метку на видимость и в положительном случае сохранить в массив видимых избирательных комиссий
+				if (PublicElectionsMap.map.getBounds().contains( placemark.getCoordPoint() ))
+					PublicElectionsMap.visibleElectionCommissions.push( placemark );
+					
+				// Найти ближайшую избирательную комиссию к центру карты
+				var mapCenter = new YMaps.GeoPoint(PublicElectionsMap.map.getCenter().getX(), PublicElectionsMap.map.getCenter().getY());
+				var distanceToElectionCommission = mapCenter.distance( placemark.getGeoPoint() );
+				if (PublicElectionsMap.distanceToNearestElectionCommission == null ||
+					distanceToElectionCommission < PublicElectionsMap.distanceToNearestElectionCommission) {
+						PublicElectionsMap.distanceToNearestElectionCommission = distanceToElectionCommission;
+						PublicElectionsMap.centerNearestElectionCommission = placemark;
+				}
+		}
 	},
 	
 	/**
