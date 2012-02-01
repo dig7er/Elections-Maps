@@ -112,7 +112,7 @@ var AddressCheckMap = {
 		if (!document.getElementById('all').checked)
 			AddressCheckMap.type = document.getElementById('house').checked ? "house" :
 									document.getElementById('street').checked ? "street" :
-										document.getElementById('locality').checked ? "district" :
+										document.getElementById('district').checked ? "district" :
 											document.getElementById('locality').checked ? "locality" :
 												document.getElementById('province').checked ? "province" : null;
 	
