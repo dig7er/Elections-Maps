@@ -1,29 +1,42 @@
-<!DOCTYPE html>
 <html>
 <head>
-<title>Проверка адресов на карте</title>
-	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-	<script src="http://api-maps.yandex.ru/1.1/index.xml?key=AOBEJU8BAAAAtOQqFQIAxdngM6C9Z6RDsPYeR_3yky-x0kQAAAAAAAAAAACy_1ilxxVL6EOWNkqU8r6ibjyvwA==&modules=pmap" type="text/javascript"></script>
-	<script type="text/javascript" src="addressCheckMap.js"></script>
-</head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="http://api-maps.yandex.ru/1.1/index.xml?key=ADSyKU8BAAAAD-VBCwIA5ak5VGynqt5xp2tzedBMfAmF8-kAAAAAAAAAAAD_nM6wtAPq97uJHRvkF_aJL3gRVQ==&modules=pmap" type="text/javascript"></script>
+    <script type="text/javascript" src="addressCheckMap.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function(){
+            $("#get_coordinates").click(AddressCheckMap.showCoordinates);
 
+            $(document).ready(function() {
+                $(window).keydown(function(event){
+                    if(event.keyCode == 13) {
+                        event.preventDefault();
+                        return false;
+                    }
+                });
+            });
+        });
+    </script>
+</head>
 <body onload="AddressCheckMap.init();">
+	<h3>Карта</h3>
 	<div>
-		<form action="#" method="GET" onsubmit="return AddressCheckMap.showCoordinates()">
-		Область или область, район:<input type="text" name="region" id="region" value="" size="75" /><br/>
-		Адрес: <input type="text" name="address" id="address" value="" size="75" /> <input type="submit" name="submit" value="Получить координаты" />
-		<div>
-			<input type="radio" name="type" id="all" value="all" checked="checked" />всё
-			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="type" id="house" value="house" />дом
-			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="type" id="street" value="street" />улица
-			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="type" id="district" value="district" />район
-			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="type" id="locality" value="locality" />населённый пункт
-			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="type" id="province" value="province" />область
-		</div>
-		</form>
+		<input type="text" id="map_address" value="" size="75" />
+		<button id="get_coordinates" >Получить координаты</button>
 	</div>
-	<div id="map" style="height:600px; width: 800px; margin-top: 20px;"></div>
-	<div id="message" style="font-size: 20pt; margin-top: 25px;"></div>
-	<div id="error" style="color: red; font-size: 20pt; margin-top: 25px;"></div>
+	<div>
+		X: <input type="text" name="x_coord" id="x_coord" value="" />
+		Y: <input type="text" name="y_coord" id="y_coord" value="" />
+	</div>
+	<div>
+		Искать по: 
+		<input type="radio" name="type" id="all" value="all" checked="checked" /><label for="all">всё</label>
+		<input type="radio" name="type" id="house" value="house" /><label for="house">дом</label>
+		<input type="radio" name="type" id="street" value="street" /><label for="street">улица</label>
+		<input type="radio" name="type" id="locality" value="locality" /><label for="locality">населённый пункт</label>
+	</div>
+
+	<div id="map" style="height:600px; width: 100%; margin-top: 20px;"></div>
 </body>
 </html>

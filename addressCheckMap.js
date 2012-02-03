@@ -1,40 +1,4 @@
-﻿/**
- * Класс для отображения логов.
- */
-var Log = {
-	/**
-	 * Метод для вывода сообщений об ошибке.
-	 * Выведет сообщение только в том случае, если на странице есть элемент с id 'error'.
-	 */
-	error: function(message) {
-		if (document.getElementById('error') != null)
-			document.getElementById('error').innerHTML += message + "\n";
-	},
-	
-	/**
-	 * Метод для вывода логов.
-	 * Выведет сообщение только в том случае, если на странице есть элемент с id 'message'.
-	 */
-	message: function(message) {
-		if (document.getElementById('message') != null)
-			document.getElementById('message').innerHTML += message + "\n";
-	},
-	
-	clearMessage: function() {
-		if (document.getElementById('message') != null)
-			document.getElementById('message').innerHTML = "";
-	},
-	
-	clearError: function() {
-		if (document.getElementById('error') != null)
-			document.getElementById('error').innerHTML = "";
-	},
-};
-
-/**
- * Именованная область видимости для общественной карты выборов.
- */
-var AddressCheckMap = {
+﻿var AddressCheckMap = {
 	map: null,
 	
 	geoResult: null,
@@ -61,8 +25,44 @@ var AddressCheckMap = {
 		AddressCheckMap.map.addControl( new YMaps.SearchControl({geocodeOptions: {geocodeProvider: "yandex#map"}, width: 295}) );
 		AddressCheckMap.map.addControl( new YMaps.SearchControl({geocodeOptions: {geocodeProvider: "yandex#pmap"}, width: 295}), new YMaps.ControlPosition(YMaps.ControlPosition.TOP_LEFT, new YMaps.Point(5, 5)) );
 		
+		YMaps.Events.observe(AddressCheckMap.map, AddressCheckMap.map.Events.Click, function (map, clickEvent) {
+			map.removeOverlay( AddressCheckMap.geoResult );
+			AddressCheckMap.setPlacemark( clickEvent.getGeoPoint(), $('#map_address').val() );
+		});
+		
 		// Показать на карте заданное место
 		AddressCheckMap.setDefaultViewport(place);
+	},
+	
+	setPlacemark: function(geoPoint, addressString) {
+		// Запускает процесс геокодирования
+		var geocoder = new YMaps.Geocoder(geoPoint);
+		
+		AddressCheckMap.geoResult = new YMaps.Placemark(geoPoint);
+		AddressCheckMap.geoResult.description = "(" + AddressCheckMap.geoResult.getCoordPoint().getX() + ", " + AddressCheckMap.geoResult.getCoordPoint().getY() + ")";
+		
+		// Обработчик успешного завершения процесса геокодирования
+		YMaps.Events.observe(geocoder, geocoder.Events.Load, function () {
+			for (var i=0; i<this.length(); i++)
+				AddressCheckMap.geoResult.description += "<p>"+this.get(i).text+"</p>";
+
+			AddressCheckMap.map.addOverlay( AddressCheckMap.geoResult );
+			
+			AddressCheckMap.formData(addressString);
+		});
+		 
+		// Обработчик неудачного завершения геокодирования
+		YMaps.Events.observe(geocoder, geocoder.Events.Fault, function (geocoder, error) {
+			AddressCheckMap.map.addOverlay( AddressCheckMap.geoResult );
+			
+			AddressCheckMap.formData(addressString);
+		});
+	},
+	
+	clickHandler: function (map, clickEvent) {
+		
+		
+		
 	},
 	
 	/**
@@ -103,22 +103,22 @@ var AddressCheckMap = {
 			alert("Произошла ошибка: " + error);
 		});
 	},
-	
+
 	showCoordinates: function() {
-		var region = document.getElementById('region').value;
-		var addressString = document.getElementById('address').value;
+		var region = $("#region").text();
+		var addressString = document.getElementById('map_address').value;
 		AddressCheckMap.type = null;
 		
 		if (!document.getElementById('all').checked)
 			AddressCheckMap.type = document.getElementById('house').checked ? "house" :
-									document.getElementById('street').checked ? "street" :
-										document.getElementById('district').checked ? "district" :
-											document.getElementById('locality').checked ? "locality" :
-												document.getElementById('province').checked ? "province" : null;
-	
+                    document.getElementById('street').checked ? "street" :
+                    document.getElementById('district').checked ? "district" :
+                    document.getElementById('locality').checked ? "locality" :
+                    document.getElementById('province').checked ? "province" : null;
+
 		AddressCheckMap.map.removeOverlay( AddressCheckMap.geoResult );
-		Log.clearMessage();
-		Log.clearError();
+		$("#message").html("");
+		$("#error").html("");
 		
 		if (region.length > 0) {
 			var geocoder = new YMaps.Geocoder(region, {geocodeProvider: "yandex#map"});
@@ -140,7 +140,13 @@ var AddressCheckMap = {
 			
 		return false;
 	},
-	
+
+    formData: function(addressString){
+        $("#map_address").val(addressString);
+        $("#x_coord").val(AddressCheckMap.geoResult.getCoordPoint().getX());
+        $("#y_coord").val(AddressCheckMap.geoResult.getCoordPoint().getY());
+    },
+
 	getCoordinates: function(addressString) {
 		// Запускает асинхронный поиск адреса
 		var geocoder = new YMaps.Geocoder(addressString, {geocodeProvider: "yandex#pmap", boundedBy: AddressCheckMap.map.getBounds(), strictBounds: true});
@@ -171,13 +177,10 @@ var AddressCheckMap = {
 								
 					if (AddressCheckMap.geoResult == null) {
 						addressParts.pop(); // remove the last element from the array
-						if (confirm('Адрес "'+addressString+'" не найден! Попробовать найти "'+addressParts.join(" ")+'"?'))
-							AddressCheckMap.getCoordinates(addressParts.join(" "));
+                        AddressCheckMap.getCoordinates(addressParts.join(" "));
 					} else if (AddressCheckMap.geoResult != null) {
 						AddressCheckMap.map.setBounds( AddressCheckMap.geoResult.getBounds() );
-						AddressCheckMap.map.addOverlay( AddressCheckMap.geoResult );
-						Log.message(addressString + ": (" + AddressCheckMap.geoResult.getCoordPoint().getX() + "; " + AddressCheckMap.geoResult.getCoordPoint().getY() + ")");
-						Log.message('<div style="font-size: 16pt">('+AddressCheckMap.geoResult.kind+")</div>");
+						AddressCheckMap.setPlacemark( AddressCheckMap.geoResult.getGeoPoint(), addressString );
 					}
 				});
 				
@@ -187,9 +190,7 @@ var AddressCheckMap = {
 				
 			} else if (AddressCheckMap.geoResult != null) {
 				AddressCheckMap.map.setBounds( AddressCheckMap.geoResult.getBounds() );
-				AddressCheckMap.map.addOverlay( AddressCheckMap.geoResult );
-				Log.message(addressString + ": (" + AddressCheckMap.geoResult.getCoordPoint().getX() + "; " + AddressCheckMap.geoResult.getCoordPoint().getY() + ")");
-				Log.message('<div style="font-size: 16pt">('+AddressCheckMap.geoResult.kind+")</div>");
+				AddressCheckMap.setPlacemark( AddressCheckMap.geoResult.getGeoPoint(), addressString );
 			} else {
 				var geocoder2 = new YMaps.Geocoder(addressString, {geocodeProvider: "yandex#map", boundedBy: AddressCheckMap.map.getBounds(), strictBounds: true});
 				YMaps.Events.observe(geocoder, geocoder.Events.Load, function (geocoder) {
@@ -204,12 +205,10 @@ var AddressCheckMap = {
 								
 					if (AddressCheckMap.geoResult != null) {
 						AddressCheckMap.map.setBounds( AddressCheckMap.geoResult.getBounds() );
-						AddressCheckMap.map.addOverlay( AddressCheckMap.geoResult );
-						Log.message(addressString + ": (" + AddressCheckMap.geoResult.getCoordPoint().getX() + "; " + AddressCheckMap.geoResult.getCoordPoint().getY() + ")");
-						Log.message('<div style="font-size: 16pt">('+AddressCheckMap.geoResult.kind+")</div>");
+						AddressCheckMap.setPlacemark( AddressCheckMap.geoResult.getGeoPoint(), addressString );
 					} else {
 						AddressCheckMap.map.setZoom(3);
-						Log.error("Адрес на найден!");
+						$("#error").text("Адрес на найден!");
 					}
 				});
 				
@@ -221,7 +220,7 @@ var AddressCheckMap = {
 		
 		YMaps.Events.observe(geocoder, geocoder.Events.Fault, function (geocoder) {
 			AddressCheckMap.map.setZoom(3);
-			Log.error("Адрес на найден!");
+			$("#error").text("Адрес на найден!");
 		});
 	}
 };
