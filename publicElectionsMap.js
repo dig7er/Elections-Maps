@@ -37,8 +37,8 @@ var ElectionMap = {
 	// Переменная, в которой заданы все типы масштабирования для карты.
 	MAP_LEVELS: new Array(
         {index: 0, value: "ЦИК"},
-        {index: 4, value: "ИКСы"},
-        {index: 10, value: "ТИКи"}
+        {index: 6, value: "ИКСы"},
+        {index: 12, value: "ТИКи"}
 	),
 
 	/**
@@ -248,5 +248,37 @@ var ElectionMap = {
 						ElectionMap.centerNearestElectionCommission = placemark;
 				}
 		}
+	},
+	
+	writeElectionCommissionCoords: function() {
+		var tileScale=25;
+		var zoom = 14;
+		// Преобразовывает географические координаты в пиксельные
+		var pixelsCoords = this.map.coordSystem.fromCoordPoint(new YMaps.GeoPoint(17, 80)),
+			// Получает из пиксельных координат индекс тайла и смещение относительно его верхней левой точки
+			tile = this.map.tileCoordinates.fromPixels(pixelsCoords, zoom);
+		var tilePos = new String(tile.number).split(",");
+		alert("Тайл 1: ("+Math.floor(tilePos[0]/tileScale)+", "+Math.floor(tilePos[1]/tileScale)+")");
+		
+		// Преобразовывает географические координаты в пиксельные
+		var pixelsCoords = this.map.coordSystem.fromCoordPoint(new YMaps.GeoPoint(170, 80)),
+			// Получает из пиксельных координат индекс тайла и смещение относительно его верхней левой точки
+			tile = this.map.tileCoordinates.fromPixels(pixelsCoords, zoom);
+		tilePos = new String(tile.number).split(",");
+		alert("Тайл 2: ("+Math.floor(tilePos[0]/tileScale)+", "+Math.floor(tilePos[1]/tileScale)+")");
+		
+		// Преобразовывает географические координаты в пиксельные
+		var pixelsCoords = this.map.coordSystem.fromCoordPoint(new YMaps.GeoPoint(170, 40)),
+			// Получает из пиксельных координат индекс тайла и смещение относительно его верхней левой точки
+			tile = this.map.tileCoordinates.fromPixels(pixelsCoords, zoom);
+		tilePos = new String(tile.number).split(",");
+		alert("Тайл 3: ("+Math.floor(tilePos[0]/tileScale)+", "+Math.floor(tilePos[1]/tileScale)+")");
+		
+		// Преобразовывает географические координаты в пиксельные
+		var pixelsCoords = this.map.coordSystem.fromCoordPoint(new YMaps.GeoPoint(17, 40)),
+			// Получает из пиксельных координат индекс тайла и смещение относительно его верхней левой точки
+			tile = this.map.tileCoordinates.fromPixels(pixelsCoords, zoom);
+		tilePos = new String(tile.number).split(",");
+		alert("Тайл 4: ("+Math.floor(tilePos[0]/tileScale)+", "+Math.floor(tilePos[1]/tileScale)+")");
 	}
 };
