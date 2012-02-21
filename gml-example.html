@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <meta name="apple-mobile-web-app-capable" content="yes">
       <title>OpenLayers GML Layer Example</title>
-	<script src="http://api-maps.yandex.ru/1.0/?key=ADSyKU8BAAAAD-VBCwIA5ak5VGynqt5xp2tzedBMfAmF8-kAAAAAAAAAAAD_nM6wtAPq97uJHRvkF_aJL3gRVQ==" type="text/javascript"></script>
-    <script src="lib/OpenLayers.js"></script>
+	<script src="http://api-maps.yandex.ru/1.0/?key=ADSyKU8BAAAAD-VBCwIA5ak5VGynqt5xp2tzedBMfAmF8-kAAAAAAAAAAAD_nM6wtAPq97uJHRvkF_aJL3gRVQ==&modules=pmap" type="text/javascript"></script>
+    <script src="lib/lib/OpenLayers.js"></script>
 	<script src="lib/OL_Yandex.js" type="text/javascript"></script>
 	<script src="lib/proj4js-compressed.js" type="text/javascript"></script>
     <script type="text/javascript">
@@ -26,14 +26,13 @@
 				controls:[]
 			}; 
             map = new OpenLayers.Map('map', options);
-            layer = new OpenLayers.Layer.WMS( "OpenLayers WMS",
-                    "http://vmap0.tiles.osgeo.org/wms/vmap0", {layers: 'basic'} );
-            //map.addLayer(layer);
 			var Y_map = new OpenLayers.Layer.Yandex("Яndex",{sphericalMercator: true});
 			var Y_hyb = new OpenLayers.Layer.Yandex("Яndex (гибрид)",{type:YMaps.MapType.HYBRID, sphericalMercator:true});
+			var Y_sat = new OpenLayers.Layer.Yandex("Яndex (спутниковый)",{type:YMaps.MapType.SATELLITE, sphericalMercator:true});
 			map.addLayer(Y_map);
 			map.setBaseLayer(Y_map);
 			map.addLayer(Y_hyb);
+			map.addLayer(Y_sat);
             //map.zoomToExtent(new OpenLayers.Bounds(-3.922119,49.335327,4.866943,59.553833));
 			//if(map.baseLayer.forwardMercator)       	 
 			var lonlat = new OpenLayers.LonLat(47.57138, 59.8384);
@@ -42,14 +41,14 @@
             	//map.setCenter(map.baseLayer.forwardMercator(8,52),3);
             //else
             	//map.setCenter(new OpenLayers.LonLat(8,52),5);
-            map.addLayer(new OpenLayers.Layer.Vector("GML", {
+            /*map.addLayer(new OpenLayers.Layer.Vector("GML", {
                 protocol: new OpenLayers.Protocol.HTTP({
                     url: "polygon.xml",
                     format: new OpenLayers.Format.GML()
                 }),
                 strategies: [new OpenLayers.Strategy.Fixed()],
 				projection: new OpenLayers.Projection("EPSG:4326")
-            }));
+            }));*/
 			map.addControl(new OpenLayers.Control.PanZoomBar());                  		
          	map.addControl(new OpenLayers.Control.LayerSwitcher());
          	map.addControl(new OpenLayers.Control.Navigation());
@@ -70,15 +69,9 @@
 				}),
 				projection: new OpenLayers.Projection("EPSG:4326")
 			}));*/
-			var wfs = new OpenLayers.Layer.GML("Regions", {
-				protocol: new OpenLayers.Protocol.WFS({
-					url: "oblasts_simplified.xml",
-					format: new OpenLayers.Format.GML()
-				}),
-				strategies: [new OpenLayers.Strategy.Fixed()],
-				projection: new OpenLayers.Projection("EPSG:4326")
-			}); 
-			map.addLayer(wfs);
+			var tlayer = new OpenLayers.Layer.GML("GML", "http://localhost/oblasts_simplified.xml", {projection: new OpenLayers.Projection("EPSG:4326")});
+			map.addLayer(tlayer);
+
         }
     </script>
   </head>

@@ -51,7 +51,7 @@
         <ms:id>0</ms:id>
       </ms:polygon>
     </gml:featureMember>
-    <!--gml:featureMember>
+    <gml:featureMember>
       <ms:polygon fid="3">
         <gml:boundedBy>
         	<gml:Box srsName="EPSG:4326">
