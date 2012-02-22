@@ -13,9 +13,9 @@
 			FEATURE_STYLES: {
 				'default':	new OpenLayers.Style({
 							  'fillColor': '#66cccc',
-							  'fillOpacity': 0.2,
+							  'fillOpacity': 0.1,
 							  'strokeColor': '#66cccc',
-							  'strokeOpacity': 0.75,
+							  'strokeOpacity': 0.25,
 							  'strokeWidth': 1
 							}),
 				'temporary':	new OpenLayers.Style({
@@ -46,6 +46,20 @@
 				maxExtent: new OpenLayers.Bounds(-20037508, -20037508, 20037508, 20037508.34),
 				controls:[]
 			},
+
+			/**
+			 * Пространство имён для вспомогательных функций
+			 */
+			Utils: {
+				/**
+				 * Обработчик клика по субъекту РФ. Максимално приближает карту к выбранному субъекту РФ.
+				 * @param {feature} [OpenLayers.Feature] выбранный объект на карте
+				 */
+				regionClickHandler: function(feature) {
+					if (feature != null && feature.geometry != null)
+						Grakon.map.zoomToExtent( feature.geometry.getBounds() );
+				}
+			},
 			
 			/**
 			 * Создаёт карту в HTML-контейнере с заданным ID.
@@ -54,18 +68,8 @@
 			init: function(mapDivID) {
 				Grakon.map = new OpenLayers.Map(mapDivID, Grakon.MAP_OPTIONS);
 				Grakon.initLayers();
-
-				// задать центр карты и изначальный масштаб
-				var lonlat = new OpenLayers.LonLat(47.57138, 54.8384);
-				lonlat.transform(new OpenLayers.Projection("EPSG:4326"), new OpenLayers.Projection("EPSG:900913"));
-				Grakon.map.setCenter(lonlat, 3);
-
-				// добавить инструменты управления на карту
-				Grakon.map.addControl(new OpenLayers.Control.PanZoomBar());                  		
-				Grakon.map.addControl(new OpenLayers.Control.LayerSwitcher());
-				Grakon.map.addControl(new OpenLayers.Control.Navigation());
-				Grakon.map.addControl(new OpenLayers.Control.LayerSwitcher());
-				Grakon.map.addControl(new OpenLayers.Control.MousePosition());
+				Grakon.initCenter();
+				Grakon.initTools();
 			},
 			
 			/**
@@ -92,7 +96,7 @@
 					styleMap: new OpenLayers.StyleMap(Grakon.FEATURE_STYLES)
 				});
 				
-				// выделять субъект цветом при наведении мыши
+				// выделять субъект РФ цветом при наведении мыши
 				var highlightCtrl = new OpenLayers.Control.SelectFeature(regions, {
 					hover: true,
 					highlightOnly: true,
@@ -101,15 +105,35 @@
 				Grakon.map.addControl(highlightCtrl);
 				highlightCtrl.activate();
 
-				// выделять другим цветом клике на субъект
+				// выделять другим цветом при клике на субъект РФ
 				var selectCtrl = new OpenLayers.Control.SelectFeature(regions, {
-					clickout: true
+					clickout: true,
+					select: Grakon.Utils.regionClickHandler
 				});
 				Grakon.map.addControl(selectCtrl);
 				selectCtrl.activate();
 				
 				// Добавить слой на карту
 				Grakon.map.addLayer(regions);
+			},
+			
+			/**
+			 * Центрирует карту в заданном месте и задаёт начальный масштаб
+			 */
+			initCenter: function() {
+				var lonlat = new OpenLayers.LonLat(47.57138, 54.8384);
+				lonlat.transform(new OpenLayers.Projection("EPSG:4326"), new OpenLayers.Projection("EPSG:900913"));
+				Grakon.map.setCenter(lonlat, 3);
+			},
+			
+			/**
+			 * Добавляет инструменты управления на карту (например, масштабирование и выбор слоя)
+			 */
+			initTools: function() {
+				Grakon.map.addControl(new OpenLayers.Control.PanZoomBar());                  		
+				Grakon.map.addControl(new OpenLayers.Control.LayerSwitcher());
+				Grakon.map.addControl(new OpenLayers.Control.Navigation());
+				Grakon.map.addControl(new OpenLayers.Control.MousePosition());
 			}
 		};
 		
