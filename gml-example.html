@@ -30,9 +30,9 @@
 			var Y_hyb = new OpenLayers.Layer.Yandex("Яndex (гибрид)",{type:YMaps.MapType.HYBRID, sphericalMercator:true});
 			var Y_sat = new OpenLayers.Layer.Yandex("Яndex (спутниковый)",{type:YMaps.MapType.SATELLITE, sphericalMercator:true});
 			map.addLayer(Y_map);
-			map.setBaseLayer(Y_map);
 			map.addLayer(Y_hyb);
 			map.addLayer(Y_sat);
+			map.setBaseLayer(Y_hyb);
             //map.zoomToExtent(new OpenLayers.Bounds(-3.922119,49.335327,4.866943,59.553833));
 			//if(map.baseLayer.forwardMercator)       	 
 			var lonlat = new OpenLayers.LonLat(47.57138, 59.8384);
@@ -69,9 +69,33 @@
 				}),
 				projection: new OpenLayers.Projection("EPSG:4326")
 			}));*/
-			var tlayer = new OpenLayers.Layer.GML("GML", "http://localhost/oblasts_simplified.xml", {projection: new OpenLayers.Projection("EPSG:4326")});
-			map.addLayer(tlayer);
+			var tlayer = new OpenLayers.Layer.GML("GML", "oblasts_simplified.xml", {projection: new OpenLayers.Projection("EPSG:4326")});
 
+            var report = function(e) {
+                OpenLayers.Console.log(e.type, e.feature.id);
+            };
+            
+            var highlightCtrl = new OpenLayers.Control.SelectFeature(tlayer, {
+                hover: true,
+                highlightOnly: true,
+                renderIntent: "temporary",
+                eventListeners: {
+                    beforefeaturehighlighted: report,
+                    featurehighlighted: report,
+                    featureunhighlighted: report
+                }
+            });
+
+            var selectCtrl = new OpenLayers.Control.SelectFeature(tlayer,
+                {clickout: true}
+            );
+
+            map.addControl(highlightCtrl);
+            map.addControl(selectCtrl);
+
+            highlightCtrl.activate();
+            selectCtrl.activate();
+			map.addLayer(tlayer);
         }
     </script>
   </head>
