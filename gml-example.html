@@ -76,13 +76,15 @@
 			 * Создаёт и добавляет слои на карту
 			 */
 			initLayers: function() {
+				var OSM_map = new OpenLayers.Layer.OSM();
 				var Y_map = new OpenLayers.Layer.Yandex("Яndex (схема)",{sphericalMercator: true});
 				var Y_sat = new OpenLayers.Layer.Yandex("Яndex (спутник)",{type:YMaps.MapType.SATELLITE, sphericalMercator:true});
 				var Y_hyb = new OpenLayers.Layer.Yandex("Яndex (гибрид)",{type:YMaps.MapType.HYBRID, sphericalMercator:true});
+				Grakon.map.addLayer(OSM_map);
 				Grakon.map.addLayer(Y_map);
 				Grakon.map.addLayer(Y_sat);
 				Grakon.map.addLayer(Y_hyb);
-				Grakon.map.setBaseLayer(Y_hyb);
+				Grakon.map.setBaseLayer(OSM_map);
 				
 				Grakon.addRegions();
 			},
