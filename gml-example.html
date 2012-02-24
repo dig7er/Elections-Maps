@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Гракон :: OpenLayers</title>
 	<script src="http://api-maps.yandex.ru/1.1/?key=AOBEJU8BAAAAtOQqFQIAxdngM6C9Z6RDsPYeR_3yky-x0kQAAAAAAAAAAACy_1ilxxVL6EOWNkqU8r6ibjyvwA==" type="text/javascript"></script>
-    <script src="lib/OpenLayers.js"></script>
+    <script src="lib/lib/OpenLayers.js"></script>
 	<script src="lib/OL_Yandex.js" type="text/javascript"></script>
     <script type="text/javascript">		
 		var Grakon = {
@@ -46,11 +46,22 @@
 				maxExtent: new OpenLayers.Bounds(-20037508, -20037508, 20037508, 20037508.34),
 				controls:[]
 			},
+			
+			MAP_URLS: {
+				regions: "oblasts_simplified.json",
+				electionCommissionsType2: "election_commissions_level_2.txt",
+				electionCommissionsType3: "election_commissions_level_3.txt"
+			},
 
 			/**
 			 * Пространство имён для вспомогательных функций
 			 */
 			Utils: {
+				/**
+				 * Указатель на слой субъектов РФ
+				 */
+				regionsLayer: null,
+				
 				/**
 				 * Обработчик клика по субъекту РФ. Максимално приближает карту к выбранному субъекту РФ.
 				 * @param {feature} [OpenLayers.Feature] выбранный объект на карте
@@ -58,7 +69,26 @@
 				regionClickHandler: function(feature) {
 					if (feature != null && feature.geometry != null)
 						Grakon.map.zoomToExtent( feature.geometry.getBounds() );
-				}
+				},
+				
+				/**
+				 * callback-метод, который считывает данные из GeoJSON,
+				 * возвращаемого в виде результата асинхронного запроса и
+				 * добавляет их на слой субъектов РФ
+				 * @private
+				 * @param {request} указатель на объект асинхронного запроса
+				 */
+				addRegionBorders: function(request) {
+					if (request.status == 200) {
+						var geoJSON = new OpenLayers.Format.GeoJSON({
+							'internalProjection': new OpenLayers.Projection("EPSG:900913"),
+							'externalProjection': new OpenLayers.Projection("EPSG:4326")
+						});
+						var features = geoJSON.read(request.responseText);
+						this.regionsLayer.addFeatures(features);
+					} else
+						OpenLayers.Console.error("Запрос границ субъектов РФ из файла GeoJSON вернул статус: " + request.status);
+				},
 			},
 			
 			/**
@@ -66,6 +96,7 @@
 			 * @param {mapDivID} ID HTML-контейнера [String]
 			 */
 			init: function(mapDivID) {
+				Grakon.setupLogging();
 				Grakon.map = new OpenLayers.Map(mapDivID, Grakon.MAP_OPTIONS);
 				Grakon.initLayers();
 				Grakon.initCenter();
@@ -73,31 +104,39 @@
 			},
 			
 			/**
+			 * Задаёт способ вывода логов и сообщений об ошибках
+			 */
+			setupLogging: function() {
+				OpenLayers.Console = window.console;
+			},
+			
+			/**
 			 * Создаёт и добавляет слои на карту
 			 */
 			initLayers: function() {
-				var OSM_map = new OpenLayers.Layer.OSM();
 				var Y_map = new OpenLayers.Layer.Yandex("Яndex (схема)",{sphericalMercator: true});
 				var Y_sat = new OpenLayers.Layer.Yandex("Яndex (спутник)",{type:YMaps.MapType.SATELLITE, sphericalMercator:true});
 				var Y_hyb = new OpenLayers.Layer.Yandex("Яndex (гибрид)",{type:YMaps.MapType.HYBRID, sphericalMercator:true});
+				var OSM_map = new OpenLayers.Layer.OSM();
 				Grakon.map.addLayer(OSM_map);
 				Grakon.map.addLayer(Y_map);
 				Grakon.map.addLayer(Y_sat);
 				Grakon.map.addLayer(Y_hyb);
-				Grakon.map.setBaseLayer(OSM_map);
+				Grakon.map.setBaseLayer(Y_hyb);
 				
 				Grakon.addRegions();
+				Grakon.addElectionCommissions();
 			},
 			
 			/**
 			 * Создать векторный слой субъектов РФ с выделением цветом при действиях мыши и добавить его на карту
 			 */
-			addRegions: function() {
-				var regions = new OpenLayers.Layer.GML("Субъекты РФ", "oblasts_simplified.xml", {
+			addRegions: function() {			
+				var regions = new OpenLayers.Layer.Vector("Субъекты РФ", {
 					projection: new OpenLayers.Projection("EPSG:4326"),
 					styleMap: new OpenLayers.StyleMap(Grakon.FEATURE_STYLES)
 				});
-				
+
 				// выделять субъект РФ цветом при наведении мыши
 				var highlightCtrl = new OpenLayers.Control.SelectFeature(regions, {
 					hover: true,
@@ -107,7 +146,7 @@
 				Grakon.map.addControl(highlightCtrl);
 				highlightCtrl.activate();
 
-				// выделять другим цветом при клике на субъект РФ
+				// показать субъект РФ на всю карту при клике на нём
 				var selectCtrl = new OpenLayers.Control.SelectFeature(regions, {
 					clickout: true,
 					select: Grakon.Utils.regionClickHandler
@@ -115,8 +154,44 @@
 				Grakon.map.addControl(selectCtrl);
 				selectCtrl.activate();
 				
+				var feature = new OpenLayers.Feature.Vector(
+				 new OpenLayers.Geometry.Point(47.57138, 54.8384),
+				 {some:'data'});
+				regions.addFeatures(feature);
+
 				// Добавить слой на карту
 				Grakon.map.addLayer(regions);
+				
+				feature = new OpenLayers.Feature.Vector(
+				new OpenLayers.Geometry.Point(47.57138, 58.8384),
+				{some:'data'});
+				regions.addFeatures(feature);
+
+				// Загрузить данные на слой
+				Grakon.Utils.regionsLayer = regions;
+				OpenLayers.loadURL(Grakon.MAP_URLS.regions, {}, Grakon.Utils, Grakon.Utils.addRegionBorders, function() {
+					OpenLayers.Console.error("Ошибка при загрузке границ субъектов РФ");
+				});
+			},
+			
+			/**
+			 * Создать векторный слой субъектов РФ с выделением цветом при действиях мыши и добавить его на карту
+			 */
+			addElectionCommissions: function() {
+				// Добавляем слой ТИКов
+				var electionCommissionsLevel3 = new OpenLayers.Layer.Text("ТИКи", {
+					location: Grakon.MAP_URLS.electionCommissionsType3,
+					projection: new OpenLayers.Projection("EPSG:4326")
+				});
+				electionCommissionsLevel3.setVisibility(false);
+				Grakon.map.addLayer(electionCommissionsLevel3);
+				
+				// Добавляем слой ИКСов
+				var electionCommissionsLevel2 = new OpenLayers.Layer.Text("ИКСы", {
+					location: Grakon.MAP_URLS.electionCommissionsType2,
+					projection: new OpenLayers.Projection("EPSG:4326")
+				});
+				Grakon.map.addLayer(electionCommissionsLevel2);
 			},
 			
 			/**
@@ -148,7 +223,7 @@
 			width: 100%;
 			height: 100%;
 			margin: 0;
-			paddnig: 0;
+			padding: 0;
 		}
 	</style>
   </head>
