@@ -9,6 +9,25 @@
     <script src="lib/OpenLayers.js"></script>
 	<script src="lib/OL_Yandex.js" type="text/javascript"></script>
     <script type="text/javascript">		
+		/**
+		 * Класс для избирательных округов
+		 * 
+		 * @param {level}
+		 *            уровень избирательного округа (от 1 до 3)
+		 * @param {data}
+		 *            объект типа {numVoters: 4, numObservers: 6}
+		 */
+		var ElectionCommission = function(id, level, shortTitle, title, address, xCoord, yCoord, data) {
+			this.id = id;
+			this.level = level < 1 ? 1 : level > 3 ? 3 : level;
+			this.shortTitle = shortTitle;
+			this.title = title;
+			this.address = address;
+			this.data = data;
+			this.xCoord = xCoord;
+			this.yCoord = yCoord;
+		};
+
 		var Grakon = {
 			/**
 			 * Три стиля (начальный, мышь на элементе и элемент выбран) для субъектов РФ
@@ -45,9 +64,10 @@
 				'default':	new OpenLayers.Style({
 							  'fillColor': '#66cccc',
 							  'fillOpacity': 0.2,
-							  'strokeColor': '#66cccc',
+							  'strokeColor': '#000000',
 							  'strokeOpacity': 0.75,
-							  'strokeWidth': 2
+							  'strokeWidth': 2,
+							  'strokeDashstyle': 'dot'
 							}),
 				'temporary':	new OpenLayers.Style({
 								  'fillColor': '#ee9900',
@@ -66,8 +86,15 @@
 							})
 			},
 			
+			/**
+			 * @private
+			 * Объект OpenLayers.Map — используемая карта.
+			 */
 			map: null,
 			
+			/**
+			 * Свойства создаваемой карты.
+			 */
 			MAP_OPTIONS: {
 				projection: new OpenLayers.Projection("EPSG:900913"),
 				units: "m",
@@ -85,28 +112,49 @@
 			},
 			
 			/**
+			 * Уровень масштабирования карты, с которого показываются ТИКи.
+			 */
+			MAP_LEVELS_ZOOM: new Object({
+				'country': 0,
+				'regions': 3,
+				'districts': 9,
+				'areas': 12
+			}),
+			
+			/**
 			 * Массивы слоёв, соответсвующие уровню в иерархии избирательной комиссии
 			 */
-			borderLayers: new Array(),
-			electionCommissionLayers: new Array(),
+			borderLayers: new Object({
+				'country': null,
+				'regions': null,
+				'districts': null,
+				'areas': null
+			}),
+			
+			electionCommissionLayers: new Object({
+				'country': null,
+				'regions': null,
+				'districts': null,
+				'areas': null
+			}),
+			
+			electionCommissions: new Object(),
 
 			/**
 			 * Пространство имён для вспомогательных функций
 			 */
-			Utils: {
-				/**
-				 * Указатель на слой субъектов РФ
-				 */
-				regionsLayer: null,
-				districtsLayer: null,
-				
+			Utils: {				
+				highlightCtrl: null,
+			
 				/**
 				 * Обработчик клика по субъекту РФ. Максимално приближает карту к выбранному субъекту РФ.
 				 * @param {feature} [OpenLayers.Feature] выбранный объект на карте
 				 */
 				regionClickHandler: function(feature) {
-					if (feature != null && feature.geometry != null)
+					if (feature != null && feature.geometry != null) {
 						Grakon.map.zoomToExtent( feature.geometry.getBounds() );
+						Grakon.map.zoomIn();
+					}
 				},
 				
 				/**
@@ -123,7 +171,7 @@
 							'externalProjection': new OpenLayers.Projection("EPSG:4326")
 						});
 						var features = geoJSON.read(request.responseText);
-						this.regionsLayer.addFeatures(features);
+						Grakon.borderLayers.regions.addFeatures(features);
 					} else
 						OpenLayers.Console.error("Запрос границ субъектов РФ из файла GeoJSON вернул статус: " + request.status);
 				},
@@ -135,10 +183,10 @@
 							'externalProjection': new OpenLayers.Projection("EPSG:4326")
 						});
 						var features = geoJSON.read(request.responseText);
-						this.districtsLayer.addFeatures(features);
+						Grakon.borderLayers.districts.addFeatures(features);
 					} else
 						OpenLayers.Console.error("Запрос границ районов субъекта РФ из файла GeoJSON вернул статус: " + request.status);
-				},
+				}
 			},
 			
 			/**
@@ -148,9 +196,9 @@
 			init: function(mapDivID) {
 				Grakon.setupLogging();
 				Grakon.initMap(mapDivID);
-				Grakon.initLayers();
-				Grakon.initCenter();
-				Grakon.initTools();
+				Grakon.initMapLayers();
+				Grakon.initMapCenter();
+				Grakon.initMapTools();
 			},
 			
 			/**
@@ -167,30 +215,103 @@
 			 */
 			initMap: function(mapDivID) {
 				Grakon.map = new OpenLayers.Map(mapDivID, Grakon.MAP_OPTIONS);
+				
 				// слушаем событие окончания масштабирования
 				Grakon.map.events.register("zoomend", Grakon.map, function() {
-					OpenLayers.Console.log(this.getZoom());
-					if (Grakon.borderLayers[1] != null)
-						Grakon.borderLayers[1].setVisibility( this.getZoom() < 9 );
+					// границы регионов
+					if (Grakon.borderLayers.regions != null)
+						Grakon.borderLayers.regions.setVisibility( this.getZoom() < Grakon.MAP_LEVELS_ZOOM.districts );
 					
-					if (Grakon.borderLayers[2] != null)
-						Grakon.borderLayers[2].setVisibility( this.getZoom() >= 9 );
+					// границы районов
+					if (Grakon.borderLayers.districts != null) {
+						Grakon.borderLayers.districts.setVisibility( this.getZoom() >= Grakon.MAP_LEVELS_ZOOM.districts );
+						if (Grakon.Utils.highlightCtrl != null) {
+							if (Grakon.map.getZoom() >= Grakon.MAP_LEVELS_ZOOM.areas)
+								Grakon.Utils.highlightCtrl.deactivate();
+							else
+								Grakon.Utils.highlightCtrl.activate();
+						}
+					}
 						
-					if (Grakon.electionCommissionLayers[2] != null)
-						Grakon.electionCommissionLayers[2].setVisibility( this.getZoom() >= 9 );
+					// видимость ИКСов
+					if (Grakon.electionCommissionLayers.regions != null)
+						Grakon.electionCommissionLayers.regions.setVisibility( this.getZoom() >= Grakon.MAP_LEVELS_ZOOM.regions );
+						
+					// видимость ТИКов
+					if (Grakon.electionCommissionLayers.districts != null)
+						Grakon.electionCommissionLayers.districts.setVisibility( this.getZoom() >= Grakon.MAP_LEVELS_ZOOM.districts );
+						
+					// видимость УИКов
+					if (Grakon.electionCommissionLayers.areas != null)
+						Grakon.electionCommissionLayers.areas.setVisibility( this.getZoom() >= Grakon.MAP_LEVELS_ZOOM.areas );
+				});
+				
+				// слушаем событие окончания перемещения по карте
+				Grakon.map.events.register("moveend", Grakon.map, function() {
+					if (Grakon.map.getZoom() >= Grakon.MAP_LEVELS_ZOOM.areas) {
+						var bounds = Grakon.map.getExtent().transform(Grakon.map.getProjectionObject(), new OpenLayers.Projection("EPSG:4326")).toArray();
+						var left = bounds[0];
+						var bottom = bounds[1];
+						var right = bounds[2];
+						var top = bounds[3];
+						OpenLayers.loadURL("locations_data.json",
+							{'x1': left,
+							'x2': right,
+							'y1': bottom,
+							'y2': top},
+							null,
+							function(request) {
+								if (request.status == 200) {
+									eval(request.responseText);
+									if (electionCommissions != null) {
+										// Добавим слой УИКи
+										if (Grakon.electionCommissionLayers.areas == null) {
+											var areasLayer = new OpenLayers.Layer.Markers( "УИКи" );
+											Grakon.electionCommissionLayers.areas = areasLayer;
+											Grakon.map.addLayer( areasLayer );
+										}
+										
+										// Добавим новые (не показанные) УИКи на карту
+										for (var uikID in electionCommissions)
+											if (Grakon.electionCommissions[uikID] == null) {
+												Grakon.electionCommissions[uikID] = electionCommissions[uikID];
+												var size = new OpenLayers.Size(18,32);
+												var offset = new OpenLayers.Pixel(-(size.w/2), -size.h);
+												var icon = new OpenLayers.Icon('img/uik.png', size, offset);
+												var uik = new OpenLayers.Marker(new OpenLayers.LonLat(electionCommissions[uikID].xCoord,electionCommissions[uikID].yCoord).transform(new OpenLayers.Projection("EPSG:4326"), Grakon.map.getProjectionObject()),icon);
+												uik.data = electionCommissions[uikID];
+												uik.events.register('mouseover',uik,function(evt){
+													var popup = new OpenLayers.Popup("popup_"+this.data.id,
+															   new OpenLayers.LonLat(this.data.xCoord,this.data.yCoord),
+															   new OpenLayers.Size(300,300),
+															   "<h3>"+this.data.title+"</h3><p>"+this.data.address+"</p>",
+															   true);
+													Grakon.map.addPopup(popup, true);
+												});
+												Grakon.electionCommissionLayers.areas.addMarker(uik);
+											}
+									}
+								} else
+									OpenLayers.Console.error("Запрос избирательных комиссий для заданного квадрата вернул статус: " + request.status);
+							},
+							function() {
+								OpenLayers.Console.error("Ошибка при загрузке избирательных комиссий для заданного квадрата.");
+							}
+						);
+					}
 				});
 			},
 			
 			/**
 			 * Создаёт и добавляет слои на карту
 			 */
-			initLayers: function() {
-				var Y_map = new OpenLayers.Layer.Yandex("Яndex (схема)",{sphericalMercator: true});
-				var Y_sat = new OpenLayers.Layer.Yandex("Яndex (спутник)",{type:YMaps.MapType.SATELLITE, sphericalMercator:true});
-				var Y_hyb = new OpenLayers.Layer.Yandex("Яndex (гибрид)",{type:YMaps.MapType.HYBRID, sphericalMercator:true});
-				var OSM_map = new OpenLayers.Layer.OSM();
-				Grakon.map.addLayer(OSM_map);
+			initMapLayers: function() {
+				var Y_map = new OpenLayers.Layer.Yandex("Карта-схема от Яндекс",{sphericalMercator: true});
+				var Y_sat = new OpenLayers.Layer.Yandex("Вид со спутника от Яндекс",{type:YMaps.MapType.SATELLITE, sphericalMercator:true});
+				var Y_hyb = new OpenLayers.Layer.Yandex("Гибридный вид от Яндекс",{type:YMaps.MapType.HYBRID, sphericalMercator:true});
+				var OSM_map = new OpenLayers.Layer.OSM("Карта-схема от OpenStreetMap");
 				Grakon.map.addLayer(Y_map);
+				Grakon.map.addLayer(OSM_map);
 				Grakon.map.addLayer(Y_sat);
 				Grakon.map.addLayer(Y_hyb);
 				Grakon.map.setBaseLayer(Y_hyb);
@@ -228,10 +349,9 @@
 
 				// Добавить слой на карту
 				Grakon.map.addLayer(regions);
-				Grakon.borderLayers[1] = regions;
+				Grakon.borderLayers.regions = regions;
 
 				// Загрузить данные на слой
-				Grakon.Utils.regionsLayer = regions;
 				OpenLayers.loadURL(Grakon.MAP_URLS.regions, {}, Grakon.Utils, Grakon.Utils.addRegionBorders, function() {
 					OpenLayers.Console.error("Ошибка при загрузке границ субъектов РФ");
 				});
@@ -248,7 +368,7 @@
 				});
 				electionCommissionsLevel3.setVisibility(false);
 				Grakon.map.addLayer(electionCommissionsLevel3);
-				Grakon.electionCommissionLayers[2] = electionCommissionsLevel3;
+				Grakon.electionCommissionLayers.districts = electionCommissionsLevel3;
 				
 				// Добавляем слой ИКСов
 				var electionCommissionsLevel2 = new OpenLayers.Layer.Text("ИКСы", {
@@ -256,7 +376,7 @@
 					projection: new OpenLayers.Projection("EPSG:4326")
 				});
 				Grakon.map.addLayer(electionCommissionsLevel2);
-				Grakon.electionCommissionLayers[1] = electionCommissionsLevel2;
+				Grakon.electionCommissionLayers.regions = electionCommissionsLevel2;
 			},
 			
 			addDistricts: function() {			
@@ -266,6 +386,7 @@
 				});
 				// Добавить слой на карту
 				districts.setVisibility(false);
+				Grakon.borderLayers.districts = districts;
 				
 				// выделять субъект РФ цветом при наведении мыши
 				var highlightCtrl = new OpenLayers.Control.SelectFeature(districts, {
@@ -275,6 +396,7 @@
 				});
 				Grakon.map.addControl(highlightCtrl);
 				highlightCtrl.activate();
+				Grakon.Utils.highlightCtrl = highlightCtrl;
 
 				// показать субъект РФ на всю карту при клике на нём
 				var selectCtrl = new OpenLayers.Control.SelectFeature(districts, {
@@ -285,31 +407,29 @@
 				selectCtrl.activate();
 
 				// Загрузить данные на слой
-				Grakon.Utils.districtsLayer = districts;
-				OpenLayers.loadURL("borders/48.json", {}, Grakon.Utils, Grakon.Utils.addDistrictBorders, function() {
+				OpenLayers.loadURL("districts/48s.json", {}, Grakon.Utils, Grakon.Utils.addDistrictBorders, function() {
 					OpenLayers.Console.error("Ошибка при загрузке районов субъекта РФ");
 				});
-				OpenLayers.loadURL("borders/49.json", {}, Grakon.Utils, Grakon.Utils.addDistrictBorders, function() {
+				OpenLayers.loadURL("districts/49s.json", {}, Grakon.Utils, Grakon.Utils.addDistrictBorders, function() {
 					OpenLayers.Console.error("Ошибка при загрузке районов субъекта РФ");
 				});
 				
 				Grakon.map.addLayer(districts);
-				Grakon.borderLayers[2] = districts;
 			},
 			
 			/**
 			 * Центрирует карту в заданном месте и задаёт начальный масштаб
 			 */
-			initCenter: function() {
+			initMapCenter: function() {
 				var lonlat = new OpenLayers.LonLat(47.57138, 54.8384);
 				lonlat.transform(new OpenLayers.Projection("EPSG:4326"), new OpenLayers.Projection("EPSG:900913"));
-				Grakon.map.setCenter(lonlat, 3);
+				Grakon.map.setCenter(lonlat, Grakon.MAP_LEVELS_ZOOM.regions+1);
 			},
 			
 			/**
 			 * Добавляет инструменты управления на карту (например, масштабирование и выбор слоя)
 			 */
-			initTools: function() {
+			initMapTools: function() {
 				Grakon.map.addControl(new OpenLayers.Control.PanZoomBar());                  		
 				Grakon.map.addControl(new OpenLayers.Control.LayerSwitcher());
 				Grakon.map.addControl(new OpenLayers.Control.Navigation());
